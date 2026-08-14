@@ -6,7 +6,7 @@ import os
 import signal
 import sys
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 from PySide6.QtCore import QProcess, QProcessEnvironment, QTimer, Qt, Signal
 from PySide6.QtWidgets import (
@@ -297,11 +297,20 @@ class RepoManagementTab(QWidget):
 
     def __init__(
         self,
+        repo_controller: Any = None,
         *,
-        config_path: Path | None = None,
+        config_path: Path | str | None = None,
         parent=None,
     ) -> None:
         super().__init__(parent)
+        if isinstance(repo_controller, (Path, str)):
+            config_path = repo_controller
+            repo_controller = None
+        if repo_controller is None:
+            from .controllers.repo_controller import RepoController
+
+            repo_controller = RepoController()
+        self._repo_controller = repo_controller
         self._config_path = (
             repo_manager.user_config_path()
             if config_path is None
@@ -574,7 +583,7 @@ class RepoManagementTab(QWidget):
             row = self.configured_table.rowCount()
             self.configured_table.insertRow(row)
             source = repo_manager.source_label(repo)
-            values = (
+            configured_values = (
                 repo.id,
                 repo.name,
                 source,
@@ -582,7 +591,7 @@ class RepoManagementTab(QWidget):
                 str(repo.priority),
                 _("Active" if repo.active else "Disabled"),
             )
-            for column, value in enumerate(values):
+            for column, value in enumerate(configured_values):
                 item = QTableWidgetItem(value)
                 item.setToolTip(value)
                 if column == 0:
@@ -593,7 +602,7 @@ class RepoManagementTab(QWidget):
                     self.configured_table.item(row, column).setToolTip(
                         _(
                             "{value}\nThe default ruyisdk repository cannot be removed.",
-                            value=values[column],
+                            value=configured_values[column],
                         )
                     )
 
@@ -895,7 +904,8 @@ class RepoManagementTab(QWidget):
             self._update_dialog.append_output_bytes(data)
 
     def _on_process_finished(self, process: QProcess, code: int, _status) -> None:
-        if process is not self._process:
+        if process != self._process:
+            process.deleteLater()
             return
         self._kill_timer.stop()
         self._read_process_output()
@@ -919,7 +929,7 @@ class RepoManagementTab(QWidget):
     def _on_process_error(
         self, process: QProcess, error: QProcess.ProcessError
     ) -> None:
-        if process is not self._process:
+        if process != self._process:
             return
         if error == QProcess.ProcessError.FailedToStart:
             self._finish_update(
@@ -1058,7 +1068,7 @@ class RepoManagementTab(QWidget):
         code: int,
         _status,
     ) -> None:
-        if process is not self._news_process:
+        if process != self._news_process:
             return
         self._read_news_output(process, dialog)
         dialog.append_output_bytes(b"", final=True)
@@ -1084,7 +1094,7 @@ class RepoManagementTab(QWidget):
         dialog: _RepoUpdateDialog,
         error: QProcess.ProcessError,
     ) -> None:
-        if process is not self._news_process:
+        if process != self._news_process:
             return
         if error == QProcess.ProcessError.FailedToStart:
             dialog.append_output(f"\n{_('Failed to start the news operation.')}\n")
