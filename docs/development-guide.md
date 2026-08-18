@@ -78,12 +78,12 @@ The main boundaries are:
 - `about_tab.py` reports application, bundled ruyi, PATH ruyi, and telemetry
   information.
 - `state.py` contains the mutable state accumulated across provisioning steps.
-- `ruyi_facade.py` is the Qt-free boundary over imported ruyi provisioning APIs.
-- `version_manager.py` handles release discovery, standalone binary downloads,
+- `infra/ruyi_adapter.py` is the Qt-free boundary over imported ruyi provisioning APIs.
+- `infra/version_manager.py` handles release discovery, standalone binary downloads,
   activation, deactivation, deletion, PATH inspection, and telemetry setup.
 - `repo_manager.py` reads repository configuration for display and applies
   mutations through ruyi's configuration editor.
-- `host_storage.py` owns platform-specific disk discovery, mount checks, and
+- `infra/os_storage.py` owns platform-specific disk discovery, mount checks, and
   device fingerprints.
 - `workers.py` wraps blocking operations in QObjects that run on QThreads.
 - `qt_logger.py` and `rich_output.py` preserve ruyi's Rich output, links,
@@ -109,7 +109,7 @@ child processes:
 - `download_child.py` runs package download and installation.
 - `repo_update_child.py` runs one repository update.
 - `repo_news_child.py` reads or marks repository news.
-- `version_manager.py` runs privileged activation helpers and ruyi's telemetry
+- `infra/version_manager.py` runs privileged activation helpers and ruyi's telemetry
   OOBE in a pseudo-terminal.
 
 QProcess environments must use `apply_qprocess_locale()`. Standard subprocess
@@ -347,24 +347,16 @@ outside the GUI implementation.
 ```text
 oh_my_ruyi/
   __main__.py           module entry point
-  about_tab.py          runtime and telemetry information
-  app.py                locale, config, QApplication, and window bootstrap
-  download_child.py     cancellable package install subprocess
-  host_storage.py       disk discovery, mount checks, and fingerprints
+  __init__.py           package initialization
   i18n.py               locale resolution and gettext-style helper
+  app/                  application initialization, lifecycle and bootstrap
+  controllers/          flow controllers and version management services
+  core/                 domain models, state machine, and presets
+  infra/                storage, repository, version manager, and ruyi adapter boundaries
   locales/              application translation catalogs
-  main_window.py        top-level tabs and provisioning flow
-  qt_logger.py          ruyi logger bridge to Qt signals
-  repo_manager.py       repository model and configuration mutations
-  repo_manager_tab.py   repository management UI
-  repo_news_child.py    repository news subprocess
-  repo_presets.py       ordered repository and source presets
-  repo_update_child.py  repository update subprocess
-  rich_output.py        safe Rich/ANSI rendering in Qt
-  ruyi_facade.py        Qt-free imported ruyi API boundary
-  state.py              mutable provisioning state
-  version_manager.py    release and activation services
-  workers.py            QThread workers and flashing interception
+  processes/            isolated child process entry points (download/update/news)
+  ui/                   presentation layer (views, widgets, styles)
+  workers/              QThread workers and thread lifecycle management
 tests/
   test_i18n.py          locale routing and translated UI coverage
   test_smoke.py         construction, logger, and rendering smoke tests
