@@ -1,12 +1,17 @@
 """Interfaces for infra adapters to invert dependencies."""
 
-from typing import Protocol, List
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Protocol, List
+
+if TYPE_CHECKING:
+    from ..infra.ruyi_adapter import PreparedProvision
+
 from .models import (
     DeviceChoice,
     VariantChoice,
     ComboChoice,
     PackageVersionSelection,
-    PreparedProvision,
     BlockDeviceChoice,
 )
 

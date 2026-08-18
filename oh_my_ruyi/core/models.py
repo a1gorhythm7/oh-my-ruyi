@@ -42,12 +42,6 @@ class PackageVersionSelection:
     locked_reason: str | None = None
 
 
-@dataclass(slots=True)
-class PreparedProvision:
-    strategies: list[tuple[str, Any]]
-    pkg_part_maps: dict[str, Any]
-
-
 @dataclass(frozen=True, slots=True)
 class RuyiRelease:
     version: str
@@ -104,15 +98,6 @@ class TelemetrySetupResult:
     mode: TelemetryMode
     status: str
     output: str = ""
-
-
-@dataclass(frozen=True, slots=True)
-class ConfiguredRepo:
-    id: str
-    name: str
-    source: str
-    priority: int
-    disabled: bool
 
 
 @dataclass(slots=True)
