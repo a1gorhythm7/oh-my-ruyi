@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from oh_my_ruyi import ruyi_facade
+from oh_my_ruyi.infra import ruyi_adapter
 
 
 class FakeCompositeRepo:
@@ -27,7 +27,7 @@ class FakeCompositeRepo:
 @pytest.fixture(autouse=True)
 def fake_composite_repo(monkeypatch):
     FakeCompositeRepo.instances.clear()
-    monkeypatch.setattr(ruyi_facade, "CompositeRepo", FakeCompositeRepo)
+    monkeypatch.setattr(ruyi_adapter, "CompositeRepo", FakeCompositeRepo)
 
 
 def _entry(repo_id: str, *, active: bool = True):
@@ -45,7 +45,7 @@ def test_ensure_repo_uses_only_active_ruyisdk_repo() -> None:
         repo=old_repo,
     )
 
-    result = ruyi_facade.ensure_repo(config)
+    result = ruyi_adapter.ensure_repo(config)
 
     assert [entry.id for entry in result.entries] == ["ruyisdk"]
     assert result.ensure_calls == 1
@@ -60,7 +60,7 @@ def test_sync_repo_updates_only_ruyisdk_and_reloads_cache() -> None:
     old_repo = FakeCompositeRepo(config.repo_entries, config)
     config.repo = old_repo
 
-    result = ruyi_facade.sync_repo(config, old_repo)
+    result = ruyi_adapter.sync_repo(config, old_repo)
 
     assert old_repo.synced_ids == ["ruyisdk"]
     assert result is not old_repo
@@ -74,4 +74,4 @@ def test_provision_repo_requires_active_ruyisdk_repo() -> None:
     )
 
     with pytest.raises(RuntimeError, match="active metadata repository 'ruyisdk'"):
-        ruyi_facade.use_provision_repo(config)
+        ruyi_adapter.use_provision_repo(config)
