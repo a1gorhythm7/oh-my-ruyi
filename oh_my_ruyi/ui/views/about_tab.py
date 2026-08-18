@@ -115,7 +115,6 @@ class AboutTab(QWidget):
             return
         self._path_process = None
         process.kill()
-        process.deleteLater()
 
     def stop_bundled_probe(self) -> None:
         self._bundled_probe_timer.stop()
@@ -124,7 +123,6 @@ class AboutTab(QWidget):
             return
         self._bundled_process = None
         process.kill()
-        process.deleteLater()
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -227,6 +225,10 @@ class AboutTab(QWidget):
                 _("No executable named ruyi was found on PATH.")
             )
             return
+        # The process is parented to this widget, so it is destroyed together
+        # with the About tab.  Never call deleteLater() on it from a signal
+        # handler: a nested event loop can destroy the QProcess before Qt
+        # finishes emitting the signal, which segfaults.
         process = QProcess(self)
         self._path_process = process
         process.setProgram(os.fspath(path_state.command))
@@ -252,7 +254,6 @@ class AboutTab(QWidget):
         self.path_version.set_ansi(
             output or _("PATH ruyi exited with code {code}.", code=code)
         )
-        process.deleteLater()
 
     def _on_path_probe_error(
         self, process: QProcess, error: QProcess.ProcessError
@@ -268,13 +269,16 @@ class AboutTab(QWidget):
             return
         self._path_process = None
         process.kill()
-        process.deleteLater()
         self.path_version.setPlainText(_("PATH ruyi version probe timed out."))
 
     def _start_bundled_probe(self) -> None:
         if self._bundled_process is not None:
             return
         self.bundled_version.setPlainText(_("Checking bundled ruyi version..."))
+        # The process is parented to this widget, so it is destroyed together
+        # with the About tab.  Never call deleteLater() on it from a signal
+        # handler: a nested event loop can destroy the QProcess before Qt
+        # finishes emitting the signal, which segfaults.
         process = QProcess(self)
         self._bundled_process = process
         process.setProgram(sys.executable)
@@ -300,7 +304,6 @@ class AboutTab(QWidget):
         self.bundled_version.set_ansi(
             output or _("Bundled ruyi exited with code {code}.", code=code)
         )
-        process.deleteLater()
 
     def _on_bundled_probe_error(
         self, process: QProcess, error: QProcess.ProcessError
@@ -316,7 +319,6 @@ class AboutTab(QWidget):
             return
         self._bundled_process = None
         process.kill()
-        process.deleteLater()
         self.bundled_version.setPlainText(_("Bundled ruyi version probe timed out."))
 
 
