@@ -6,15 +6,13 @@ import os
 import sys
 from typing import Callable, Optional
 
-from .i18n import initialize, install_qt_translations, localize_config
-
 from PySide6.QtWidgets import QApplication
-
 from ruyi.config import GlobalConfig
 from ruyi.utils.global_mode import EnvGlobalModeProvider
 
-from .qt_logger import LogEmitter, QtRuyiLogger
-from .main_window import ProvisionMainWindow
+from ..i18n import initialize, install_qt_translations, localize_config
+from ..ui.views.main_window import ProvisionMainWindow
+from ..ui.widgets.qt_logger import LogEmitter, QtRuyiLogger
 
 
 def _make_global_mode() -> EnvGlobalModeProvider:

@@ -33,9 +33,13 @@ from ruyi.config import GlobalConfig
 from ruyi.ruyipkg.composite_repo import CompositeRepo
 from ruyi.ruyipkg.pkg_manifest import PartitionKind, PartitionMapDecl
 
-from . import host_storage, ruyi_facade, version_manager
-from .i18n import _, format_exception_message
-from .ruyi_facade import PreparedProvision
+from ..i18n import _, format_exception_message
+from ..infra import (
+    os_storage,
+    ruyi_adapter,
+    version_manager,
+)
+from ..infra.ruyi_adapter import PreparedProvision
 
 
 def _set_terminal_target(config: GlobalConfig | None, target: str) -> None:
@@ -66,7 +70,7 @@ class RepoInitWorker(_BaseWorker):
     def run(self) -> None:
         _set_terminal_target(self._config, "welcome")
         try:
-            mr = ruyi_facade.ensure_repo(self._config)
+            mr = ruyi_adapter.ensure_repo(self._config)
             self.finished.emit(mr)
         except Exception as exc:  # noqa: BLE001 - surface to UI
             self._fail(exc)
@@ -84,7 +88,7 @@ class RepoSyncWorker(_BaseWorker):
     def run(self) -> None:
         _set_terminal_target(self._config, "device")
         try:
-            mr = ruyi_facade.sync_repo(self._config, self._mr)
+            mr = ruyi_adapter.sync_repo(self._config, self._mr)
             self.finished.emit(mr)
         except Exception as exc:  # noqa: BLE001
             self._fail(exc)
@@ -96,7 +100,7 @@ class StorageDiscoveryWorker(_BaseWorker):
     @Slot()
     def run(self) -> None:
         try:
-            self.finished.emit(host_storage.list_disks())
+            self.finished.emit(os_storage.list_disks())
         except Exception as exc:  # noqa: BLE001
             self._fail(exc)
 
@@ -235,7 +239,7 @@ class VersionActivationWorker(_BaseWorker):
             "",
             sys.executable,
             "-m",
-            "oh_my_ruyi.version_manager",
+            "oh_my_ruyi.processes.version_activation_child",
             "activate",
             os.fspath(self._binary),
             os.fspath(self._directory),
@@ -333,7 +337,7 @@ class VersionDeactivationWorker(_BaseWorker):
                 "",
                 sys.executable,
                 "-m",
-                "oh_my_ruyi.version_manager",
+                "oh_my_ruyi.processes.version_activation_child",
                 "deactivate",
                 os.fspath(self._directory),
                 os.fspath(self._link),
@@ -450,7 +454,7 @@ class FlashWorker(_BaseWorker):
         plugin_api.RuyiHostAPI.cli_ask_for_yesno_confirmation = ask
         plugin_api.RuyiHostAPI.call_subprocess_argv = call_subprocess
         try:
-            return ruyi_facade.run_flash(
+            return ruyi_adapter.run_flash(
                 self._config,
                 self._prepared,
                 self._host_blkdev_map,
@@ -565,13 +569,13 @@ class FlashWorker(_BaseWorker):
                 f"refusing to write to unreviewed dd target '{output_path}'"
             )
         expected = self._host_blkdev_fingerprints.get(part)
-        current = host_storage.device_fingerprint(output_path)
+        current = os_storage.device_fingerprint(output_path)
         if expected is None or current is None or current != expected:
             raise RuntimeError(
                 f"the dd target '{output_path}' changed after review; flashing was stopped"
             )
         if (
-            host_storage.is_disk_or_child_mounted(output_path)
+            os_storage.is_disk_or_child_mounted(output_path)
             and part not in self._confirmed_mounted_parts
         ):
             raise RuntimeError(
@@ -631,20 +635,7 @@ class FlashWorker(_BaseWorker):
 
 
 def run_worker_in_thread(worker: _BaseWorker) -> QThread:
-    """Move ``worker`` to a fresh :class:`QThread`, start it, and return the thread.
-
-    The caller is responsible for wiring ``worker.finished`` / ``worker.failed``
-    to whatever ends the work, and for cleaning up — typically:
-
-    .. code-block:: python
-
-        thread = run_worker_in_thread(worker)
-        worker.finished.connect(thread.quit)
-        thread.finished.connect(thread.deleteLater)
-
-    The worker's ``run()`` slot is invoked via a queued connection once the
-    thread's event loop starts.
-    """
+    """Move ``worker`` to a fresh :class:`QThread`, start it, and return the thread."""
     thread = QThread()
     worker.moveToThread(thread)
     thread.started.connect(worker.run, type=Qt.ConnectionType.QueuedConnection)

@@ -3,17 +3,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from ruyi.config import GlobalConfig
 from ruyi.ruyipkg.composite_repo import CompositeRepo
 from ruyi.ruyipkg.pkg_manifest import PartitionMapDecl
 
-from .qt_logger import LogEmitter
-from .ruyi_facade import (
+if TYPE_CHECKING:
+    from ..infra.ruyi_adapter import PreparedProvision
+    from ..ui.widgets.qt_logger import LogEmitter
+
+from .models import (
     ComboChoice,
     DeviceChoice,
-    PreparedProvision,
     VariantChoice,
 )
 

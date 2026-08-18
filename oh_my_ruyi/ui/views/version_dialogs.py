@@ -14,9 +14,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import version_manager
-from ..i18n import _, translate_widget_tree
-from ..rich_output import RichTextView
+from ...i18n import _, translate_widget_tree
+from ...infra import version_manager
+from ..widgets.rich_output import RichTextView
 
 
 class VersionTableItem(QTableWidgetItem):

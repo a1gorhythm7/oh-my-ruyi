@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Any
+from typing import Any, Callable
 
 from PySide6.QtCore import QObject, QThread, Qt
 
@@ -8,8 +8,8 @@ from .workers import _BaseWorker
 
 
 class WorkerTaskRunner(QObject):
-    """
-    A unified manager for running _BaseWorker instances in QThreads.
+    """A unified manager for running _BaseWorker instances in QThreads.
+
     This encapsulates the boilerplate of connecting signals, starting the thread,
     and cleaning up (deleteLater) upon finish, failure, or cancellation.
     """
@@ -28,8 +28,8 @@ class WorkerTaskRunner(QObject):
         on_cancelled: Callable[[], None] | None = None,
         extra_connections: list[tuple[Any, Callable]] | None = None,
     ) -> _BaseWorker:
-        """
-        Starts the worker in a new thread.
+        """Starts the worker in a new thread.
+
         Connects basic signals (finished, failed) and any extra signals.
         Returns the worker instance (e.g. for cancellation).
         """

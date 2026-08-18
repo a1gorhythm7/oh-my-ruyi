@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any, Callable
 
-from PySide6.QtCore import QProcess, QProcessEnvironment, QTimer, Qt, Signal
+from PySide6.QtCore import QProcess, QTimer, Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -28,9 +28,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import repo_manager
-from .i18n import apply_qprocess_locale, _, translate_widget_tree
-from .rich_output import RICH_TERMINAL_ENV, RichTextView, strip_terminal_controls
+from ...infra import repo_manager
+from ...i18n import _, translate_widget_tree
+from ..widgets.qprocess_utils import configure_qprocess_environment
+from ..widgets.rich_output import (
+    RichTextView,
+    strip_terminal_controls,
+)
 
 _REPO_ROLE = Qt.ItemDataRole.UserRole
 
@@ -307,7 +311,7 @@ class RepoManagementTab(QWidget):
             config_path = repo_controller
             repo_controller = None
         if repo_controller is None:
-            from .controllers.repo_controller import RepoController
+            from ...controllers.repo_controller import RepoController
 
             repo_controller = RepoController()
         self._repo_controller = repo_controller
@@ -864,20 +868,12 @@ class RepoManagementTab(QWidget):
         process.setArguments(
             [
                 "-m",
-                "oh_my_ruyi.repo_update_child",
+                "oh_my_ruyi.processes.repo_update_child",
                 os.fspath(self._config_path),
                 repo_id,
             ]
         )
-        env = QProcessEnvironment.systemEnvironment()
-        apply_qprocess_locale(env)
-        env.remove("NO_COLOR")
-        env.insert("PYTHONUNBUFFERED", "1")
-        env.insert("RUYI_TELEMETRY_OPTOUT", "1")
-        for key, value in RICH_TERMINAL_ENV.items():
-            env.insert(key, value)
-        process.setProcessEnvironment(env)
-        process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        configure_qprocess_environment(process)
         process.readyReadStandardOutput.connect(self._read_process_output)
         process.finished.connect(
             lambda code, status, p=process: self._on_process_finished(p, code, status)
@@ -1022,20 +1018,12 @@ class RepoManagementTab(QWidget):
         process.setArguments(
             [
                 "-m",
-                "oh_my_ruyi.repo_news_child",
+                "oh_my_ruyi.processes.repo_news_child",
                 os.fspath(self._config_path),
                 action,
             ]
         )
-        env = QProcessEnvironment.systemEnvironment()
-        apply_qprocess_locale(env)
-        env.remove("NO_COLOR")
-        env.insert("PYTHONUNBUFFERED", "1")
-        env.insert("RUYI_TELEMETRY_OPTOUT", "1")
-        for key, value in RICH_TERMINAL_ENV.items():
-            env.insert(key, value)
-        process.setProcessEnvironment(env)
-        process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        configure_qprocess_environment(process)
         process.readyReadStandardOutput.connect(
             lambda p=process, d=dialog: self._read_news_output(p, d)
         )

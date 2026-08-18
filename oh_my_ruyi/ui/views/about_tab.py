@@ -5,12 +5,11 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
-import subprocess
 import sys
 import time
 from pathlib import Path
 
-from PySide6.QtCore import QProcess, QProcessEnvironment, QTimer, Qt
+from PySide6.QtCore import QProcess, QTimer, Qt
 from PySide6.QtWidgets import (
     QFormLayout,
     QFrame,
@@ -24,14 +23,14 @@ from PySide6.QtWidgets import (
 
 from ruyi.telemetry.provider import next_utc_weekday
 
-from . import __version__, version_manager
-from .i18n import (
-    apply_qprocess_locale,
-    locale_environment,
+from ... import __version__
+from ...infra import version_manager
+from ...i18n import (
     _,
     translate_widget_tree,
 )
-from .rich_output import RICH_TERMINAL_ENV, RichTextView
+from ..widgets.qprocess_utils import configure_qprocess_environment
+from ..widgets.rich_output import RichTextView
 
 
 def application_version() -> str:
@@ -94,12 +93,18 @@ class AboutTab(QWidget):
         self._path_probe_timer.setSingleShot(True)
         self._path_probe_timer.setInterval(10_000)
         self._path_probe_timer.timeout.connect(self._on_path_probe_timeout)
+        self._bundled_process: QProcess | None = None
+        self._bundled_probe_timer = QTimer(self)
+        self._bundled_probe_timer.setSingleShot(True)
+        self._bundled_probe_timer.setInterval(10_000)
+        self._bundled_probe_timer.timeout.connect(self._on_bundled_probe_timeout)
         self._build_ui()
         translate_widget_tree(self)
         self._load_info()
 
     def closeEvent(self, event) -> None:  # noqa: N802 - Qt override
         self.stop_path_probe()
+        self.stop_bundled_probe()
         super().closeEvent(event)
 
     def stop_path_probe(self) -> None:
@@ -109,6 +114,15 @@ class AboutTab(QWidget):
         if process is None:
             return
         self._path_process = None
+        process.kill()
+        process.deleteLater()
+
+    def stop_bundled_probe(self) -> None:
+        self._bundled_probe_timer.stop()
+        process = self._bundled_process
+        if process is None:
+            return
+        self._bundled_process = None
         process.kill()
         process.deleteLater()
 
@@ -185,7 +199,7 @@ class AboutTab(QWidget):
         self._version_label.setText(
             _("Version {version}", version=application_version())
         )
-        self.bundled_version.set_ansi(_bundled_version_text())
+        self._start_bundled_probe()
         mode, schedule = telemetry_summary(self._config)
         self.telemetry_mode.setText(mode)
         self.telemetry_schedule.setText(schedule)
@@ -217,14 +231,7 @@ class AboutTab(QWidget):
         self._path_process = process
         process.setProgram(os.fspath(path_state.command))
         process.setArguments(["version"])
-        env = QProcessEnvironment.systemEnvironment()
-        apply_qprocess_locale(env)
-        env.remove("NO_COLOR")
-        env.insert("RUYI_TELEMETRY_OPTOUT", "1")
-        for key, value in RICH_TERMINAL_ENV.items():
-            env.insert(key, value)
-        process.setProcessEnvironment(env)
-        process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        configure_qprocess_environment(process)
         process.finished.connect(
             lambda code, status, p=process: self._on_path_probe_finished(
                 p, code, status
@@ -264,31 +271,53 @@ class AboutTab(QWidget):
         process.deleteLater()
         self.path_version.setPlainText(_("PATH ruyi version probe timed out."))
 
-
-def _bundled_version_text() -> str:
-    env = os.environ.copy()
-    env.update(locale_environment())
-    env.pop("NO_COLOR", None)
-    env["RUYI_TELEMETRY_OPTOUT"] = "1"
-    env.update(RICH_TERMINAL_ENV)
-    try:
-        completed = subprocess.run(
-            [sys.executable, "-m", "ruyi", "version"],
-            env=env,
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            timeout=10,
-            check=False,
+    def _start_bundled_probe(self) -> None:
+        if self._bundled_process is not None:
+            return
+        self.bundled_version.setPlainText(_("Checking bundled ruyi version..."))
+        process = QProcess(self)
+        self._bundled_process = process
+        process.setProgram(sys.executable)
+        process.setArguments(["-m", "ruyi", "version"])
+        configure_qprocess_environment(process)
+        process.finished.connect(
+            lambda code, status, p=process: self._on_bundled_probe_finished(
+                p, code, status
+            )
         )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        return _("Bundled ruyi version is unavailable: {error}", error=exc)
-    output = "\n".join(
-        part.strip() for part in (completed.stdout, completed.stderr) if part.strip()
-    )
-    return output or _(
-        "Bundled ruyi exited with code {code}.", code=completed.returncode
-    )
+        process.errorOccurred.connect(
+            lambda error, p=process: self._on_bundled_probe_error(p, error)
+        )
+        process.start()
+        self._bundled_probe_timer.start()
+
+    def _on_bundled_probe_finished(self, process: QProcess, code: int, _status) -> None:
+        if process != self._bundled_process:
+            return
+        self._bundled_probe_timer.stop()
+        output = bytes(process.readAllStandardOutput()).decode(errors="replace").strip()
+        self._bundled_process = None
+        self.bundled_version.set_ansi(
+            output or _("Bundled ruyi exited with code {code}.", code=code)
+        )
+        process.deleteLater()
+
+    def _on_bundled_probe_error(
+        self, process: QProcess, error: QProcess.ProcessError
+    ) -> None:
+        if process != self._bundled_process:
+            return
+        if error == QProcess.ProcessError.FailedToStart:
+            self._on_bundled_probe_finished(process, 1, error)
+
+    def _on_bundled_probe_timeout(self) -> None:
+        process = self._bundled_process
+        if process is None:
+            return
+        self._bundled_process = None
+        process.kill()
+        process.deleteLater()
+        self.bundled_version.setPlainText(_("Bundled ruyi version probe timed out."))
 
 
 __all__ = ["AboutTab", "application_version", "telemetry_summary"]

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import errno
 import json
 import os
@@ -21,13 +20,22 @@ import tomllib
 import urllib.request
 import uuid
 from urllib.parse import unquote, urlsplit
-from dataclasses import dataclass
 from pathlib import Path
-from typing import BinaryIO, Callable, Literal
+from typing import BinaryIO, Callable
 
 from ruyi.utils.xdg_basedir import XDGBaseDir
 
-from .i18n import locale_environment
+from ..core.models import (
+    ActivationResult,
+    ActivationState,
+    InstalledVersion,
+    PathState,
+    ReleaseCatalog,
+    RuyiRelease,
+    TelemetryMode,
+    TelemetrySetupResult,
+)
+from ..i18n import locale_environment
 
 PRIMARY_RELEASES_URL = "https://api.ruyisdk.cn/releases/latest-pm"
 FALLBACK_RELEASES_URL = (
@@ -116,64 +124,6 @@ class TelemetryCommandError(VersionManagerError):
     def __init__(self, message: str, output: str) -> None:
         super().__init__(message)
         self.output = output
-
-
-@dataclass(frozen=True, slots=True)
-class RuyiRelease:
-    version: str
-    channel: str
-    release_date: str
-    download_urls: tuple[str, ...]
-    architecture: str = ""
-
-
-@dataclass(frozen=True, slots=True)
-class ReleaseCatalog:
-    releases: tuple[RuyiRelease, ...]
-    source_url: str
-
-
-@dataclass(frozen=True, slots=True)
-class InstalledVersion:
-    version: str
-    path: Path
-    size: int
-    architecture: str
-    channel: str
-
-
-@dataclass(frozen=True, slots=True)
-class ActivationState:
-    path: Path
-    exists: bool
-    is_symlink: bool
-    managed: bool
-    target: Path | None
-    version: str | None
-
-
-@dataclass(frozen=True, slots=True)
-class ActivationResult:
-    state: ActivationState
-    backup_path: Path | None
-
-
-@dataclass(frozen=True, slots=True)
-class PathState:
-    command: Path | None
-    resolved_command: Path | None
-    active_target: Path | None
-    correct: bool
-
-
-TelemetryMode = Literal["consent", "local", "optout"]
-
-
-@dataclass(frozen=True, slots=True)
-class TelemetrySetupResult:
-    mode: TelemetryMode
-    status: str
-    output: str = ""
 
 
 def managed_data_dir(home: Path | None = None) -> Path:
@@ -891,40 +841,3 @@ def _telemetry_status_from_output(output: str, mode: TelemetryMode) -> str:
     if statuses:
         return statuses[-1]
     return {"consent": "on", "local": "local", "optout": "off"}[mode]
-
-
-def _main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser()
-    subparsers = parser.add_subparsers(dest="action", required=True)
-    activate_parser = subparsers.add_parser("activate")
-    activate_parser.add_argument("binary", type=Path)
-    activate_parser.add_argument("directory", type=Path)
-    activate_parser.add_argument("link", type=Path)
-    activate_parser.add_argument("--backup-unmanaged", action="store_true")
-    deactivate_parser = subparsers.add_parser("deactivate")
-    deactivate_parser.add_argument("directory", type=Path)
-    deactivate_parser.add_argument("link", type=Path)
-    args = parser.parse_args(argv)
-    if args.action == "activate":
-        result = activate_version(
-            args.binary,
-            args.directory,
-            link=args.link,
-            backup_unmanaged=args.backup_unmanaged,
-        )
-        payload = {
-            "target": os.fspath(result.state.target) if result.state.target else None,
-            "version": result.state.version,
-            "backup_path": (
-                os.fspath(result.backup_path) if result.backup_path else None
-            ),
-        }
-    else:
-        state = deactivate_version(args.directory, link=args.link)
-        payload = {"target": None, "version": state.version, "backup_path": None}
-    print(json.dumps(payload))
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(_main())

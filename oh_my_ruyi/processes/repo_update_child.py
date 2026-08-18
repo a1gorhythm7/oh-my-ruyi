@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 from pathlib import Path
+
+from ..i18n import _, initialize, localize_config
+
+from ruyi.config import GlobalConfig
+from ruyi.log import RuyiConsoleLogger
+from ruyi.ruyipkg.composite_repo import CompositeRepo
+from ruyi.ruyipkg.update_cli import UpdateCommand
+from ruyi.utils.global_mode import EnvGlobalModeProvider
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -19,17 +28,7 @@ def main(argv: list[str] | None = None) -> int:
     if hasattr(os, "setpgrp"):
         os.setpgrp()
 
-    from .i18n import initialize, localize_config, _
-
     initialize()
-
-    import argparse
-
-    from ruyi.config import GlobalConfig
-    from ruyi.log import RuyiConsoleLogger
-    from ruyi.ruyipkg.composite_repo import CompositeRepo
-    from ruyi.ruyipkg.update_cli import UpdateCommand
-    from ruyi.utils.global_mode import EnvGlobalModeProvider
 
     command_argv = ["ruyi", "update", "--repo", repo_id]
     gm = EnvGlobalModeProvider(os.environ, command_argv)

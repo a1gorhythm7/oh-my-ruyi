@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from .i18n import _, translate_widget_tree
+from ...i18n import _, translate_widget_tree
 
 
 SETUP_STEPS = (

@@ -10,13 +10,12 @@ from __future__ import annotations
 import os
 import sys
 
-from .i18n import initialize, localize_config
+from ..i18n import initialize, localize_config
+from ..infra import ruyi_adapter
 
 from ruyi.config import GlobalConfig
 from ruyi.log import RuyiConsoleLogger
 from ruyi.utils.global_mode import EnvGlobalModeProvider
-
-from . import ruyi_facade
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -30,8 +29,8 @@ def main(argv: list[str] | None = None) -> int:
     gm = EnvGlobalModeProvider(os.environ, list(sys.argv))
     logger = RuyiConsoleLogger(gm)
     config = localize_config(GlobalConfig.load_from_config(gm, logger))
-    mr = ruyi_facade.ensure_repo(config)
-    return ruyi_facade.run_download(config, mr, argv)
+    mr = ruyi_adapter.ensure_repo(config)
+    return ruyi_adapter.run_download(config, mr, argv)
 
 
 if __name__ == "__main__":

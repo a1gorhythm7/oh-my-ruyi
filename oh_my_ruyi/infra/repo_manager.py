@@ -20,7 +20,7 @@ from ruyi.config.schema import (
 from ruyi.ruyipkg.repo import DEFAULT_REPO_ID, REPO_ID_PATTERN
 from ruyi.utils.xdg_basedir import XDGBaseDir
 
-from ..repo_presets import (
+from ..core.repo_presets import (
     DEFAULT_REPO_FALLBACK_NAME,
     DEFAULT_REPO_OFFICIAL_NAME,
     OFFICIAL_REPO_REMOTES,

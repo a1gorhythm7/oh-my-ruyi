@@ -4,19 +4,23 @@ import os
 import sys
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, Signal, QTimer
+from PySide6.QtCore import QObject, QProcess, Signal, QTimer
 from ruyi.config import GlobalConfig
 
-from ..i18n import apply_qprocess_locale, _
-from ..rich_output import RICH_TERMINAL_ENV
-from ..state import WizardState
-from ..state_machine import ProvisionStateMachine
-from ..workers import FlashWorker, StorageDiscoveryWorker, TelemetrySetupWorker
-from ..worker_manager import WorkerTaskRunner
+from ..core.state import WizardState
+from ..core.state_machine import ProvisionStateMachine
+from ..i18n import _
+from ..ui.widgets.qprocess_utils import configure_qprocess_environment
+from ..workers import (
+    FlashWorker,
+    StorageDiscoveryWorker,
+    TelemetrySetupWorker,
+    WorkerTaskRunner,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from ..qt_logger import LogEmitter
+    from ..ui.widgets.qt_logger import LogEmitter
 
 FASTBOOT_PROGRAM = "fastboot"
 
@@ -42,14 +46,12 @@ class ProvisionController(QObject):
 
     # Storage Discovery Signals
     storage_discovery_started = Signal()
-    storage_discovery_finished = Signal(
-        object
-    )  # dict[str, host_storage.HostBlockDevice]
+    storage_discovery_finished = Signal(object)  # dict[str, os_storage.HostBlockDevice]
     storage_discovery_failed = Signal(str)
 
     # Flash Signals
     flash_started = Signal()
-    flash_finished = Signal(object)  # ruyi_facade.FlashResult
+    flash_finished = Signal(object)  # ruyi_adapter.FlashResult
     flash_failed = Signal(str)
 
     # Telemetry Signals
@@ -196,16 +198,11 @@ class ProvisionController(QObject):
         process = QProcess(self)
         self._download_process = process
         process.setProgram(sys.executable)
-        process.setArguments(["-m", "oh_my_ruyi.download_child", *self.state.pkg_atoms])
+        process.setArguments(
+            ["-m", "oh_my_ruyi.processes.download_child", *self.state.pkg_atoms]
+        )
 
-        env = QProcessEnvironment.systemEnvironment()
-        apply_qprocess_locale(env)
-        env.remove("NO_COLOR")
-        env.insert("PYTHONUNBUFFERED", "1")
-        for key, value in RICH_TERMINAL_ENV.items():
-            env.insert(key, value)
-        process.setProcessEnvironment(env)
-        process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        configure_qprocess_environment(process)
 
         process.readyReadStandardOutput.connect(self._read_download_output)
         process.finished.connect(

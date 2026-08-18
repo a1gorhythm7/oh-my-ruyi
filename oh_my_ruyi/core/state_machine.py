@@ -64,7 +64,7 @@ class ProvisionStateMachine:
             # Re-derive pkg_atoms from the combo, discarding any version
             # customization the user may have done.
             if self.state.combo is not None:
-                from .ruyi_facade import combo_package_atoms
+                from ..infra.ruyi_adapter import combo_package_atoms
 
                 self.state.pkg_atoms = combo_package_atoms(self.state.combo.entity)
             self.versions_visited = False
@@ -91,7 +91,7 @@ class ProvisionStateMachine:
             # Only allow jumping here if the TUI would actually have offered
             # customization; otherwise the page is unpopulated and would be
             # blank/confusing.
-            from .ruyi_facade import is_package_version_customization_possible
+            from ..infra.ruyi_adapter import is_package_version_customization_possible
 
             return (
                 self.state.combo is not None
